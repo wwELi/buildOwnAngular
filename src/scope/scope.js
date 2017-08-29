@@ -3,7 +3,8 @@ export default class scope {
         this.$$watchList = [];
     }
 
-    $watch(watchFn, calledFn = () => {}) {
+    $watch(watchFn, calledFn = () => {
+    }) {
         this.$$watchList.push({
             watchFn,
             calledFn,
@@ -48,8 +49,19 @@ export default class scope {
         } while (isDirty);
     }
 
-    $eval(expr) {
-        return expr(this);
+    $eval(expr, locals) {
+        return expr(this, locals);
+    }
+
+    $apply(expr) {
+        try {
+            return this.$eval(expr);
+        } catch (e) {
+            throw e;
+        } finally {
+            this.$digest();
+        }
+
     }
 
     initLastVal() {
