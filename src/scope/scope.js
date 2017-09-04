@@ -100,6 +100,7 @@ export default class scope {
 
         childScope.$$watchList = [];
         childScope.$$listeners = {};
+        childScope.$parent = this;
         this.$$children.push(childScope);
         return childScope;
     }
@@ -110,17 +111,43 @@ export default class scope {
             this.$$listeners[eventName] = listeners = [];
         }
         listeners.push(listener);
+        return () => {
+            const index = listener.indexOf(listener);
+            index >= 0 && (listeners[index] = null);
+        };
     }
-    $emit(eventName) {
-        this.$$fireEventOnScope();
+
+    $emit(eventName, ...otherAgrs) {
+        let event = {name: eventName};
+        let listenerArgs = [event].concat([...otherAgrs]);
+        let scope = this;
+        do {
+            scope.$$fireEventOnScope(eventName, listenerArgs);
+            scope = scope.$parent;
+        } while (scope);
+        return event;
     }
-    $broadcast(eventName) {
-        this.$$fireEventOnScope();
+
+    $broadcast(eventName, otherAgrs) {
+        let event = {name: eventName};
+        let listenerArgs = [event].concat([...otherAgrs]);
+        this.$$everyScope(scope => {
+            scope.$$fireEventOnScope(eventName, listenerArgs);
+            return true;
+        });
+        this.$$fireEventOnScope(eventName, listenerArgs);
+        return event;
     }
-    $$fireEventOnScope(eventName) {
-        let listeners = this.$$listeners[eventName];
-        let event = {name: eventName}
-        listeners.forEach(item => item(event));
+
+    $$fireEventOnScope(eventName, otherAgrs) {
+        let listeners = this.$$listeners[eventName] || [];
+        let i = 0;
+        while (i < listeners.length) {
+            const item = listeners[i];
+            item === null ? listeners.splice(i, 1) : item.apply(null, otherAgrs);
+        }
+        ;
+        return event;
     }
 
     initLastVal() {
